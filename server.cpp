@@ -1,11 +1,41 @@
+#include <boost/asio/placeholders.hpp>
+#include <boost/asio/read_until.hpp>
+#include <boost/system/detail/error_code.hpp>
+#include <exception>
 #include <iostream>
-#include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <vector>
 
 using boost::asio::ip::tcp;
+
+class Client{
+public:
+    typedef boost::shared_ptr<Client> ptr;
+    Client(std::string address){
+        this->id = count++;
+        this->address = address;
+    }
+    static void create(std::string addr){
+        AllClients.push_back(ptr(new Client(addr)));
+    }
+    static int getCount(){
+        return count;
+    }
+    int getId(){
+        return this->id;
+    }
+    std::string getAddr(){
+        return this->address;
+    }
+private:
+    static inline int count = 0;
+    static inline std::vector<ptr> AllClients;
+    int id;
+    std::string address;
+};
 
 class Connection : public boost::enable_shared_from_this<Connection>{
 
@@ -19,11 +49,36 @@ public:
     tcp::socket& socket(){
         return socket_;
     }
-    void read(){
-        boost::asio::async_read_until(socket_, message,'\n',
-                                boost::bind(&Connection::read_handler, shared_from_this(),
+    void read_opt(){
+        boost::asio::async_read(socket_, boost::asio::buffer(option, 1),
+                                boost::bind(&Connection::opt_handler, shared_from_this(),
                                 boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred)
                                 );
+    }
+    void opt_handler(const boost::system::error_code &e, size_t){
+        if(e)
+            std::cerr<<"opt_handler: "<<e.what()<<std::endl;
+        else{
+            std::cout<<"You chose option: "<<option<<std::endl;
+            opt_executer();
+        }
+    }
+    void opt_executer(){
+        switch(*option){
+            case 's':
+                get_msg();
+                break;
+        }
+    }
+    bool get_msg(){
+        try{
+            boost::asio::async_read_until(socket_, message, '\n', 
+                         boost::bind(&Connection::read_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+            return 1;
+        }
+        return 0;
     }
     void read_handler(const boost::system::error_code& e, size_t){
         if(e)
@@ -59,8 +114,10 @@ public:
     }
 private:
     void accept_handler(Connection::ptr conn, const boost::system::error_code& error){
-        if(!error)
-            conn->read();
+        if(!error){
+            Client::create(conn->socket().remote_endpoint().address().to_string());
+            conn->read_opt();
+        }
         else
             std::cerr<<error.what()<<std::endl;
         start();

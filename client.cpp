@@ -2,11 +2,11 @@
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
+#include <string>
 
 using boost::asio::ip::tcp;
 
 class Client{
-
 public:
 
     Client(boost::asio::io_context &io_context_) : socket_(tcp::socket(io_context_))
@@ -23,28 +23,47 @@ public:
         std::cin>>option;
         std::cin.ignore();
     }
+    bool send_opt(){
+        try{
+            boost::asio::write(socket_, boost::asio::buffer(option));
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+            return 1;
+        }
+        return 0;
+    }
     void execute(){
-        switch(option){
+        switch(*option){
             case 'h':
                 print_help();
                 break;
             case 's':
-                send_to_server();
+                send_opt();
+                send_msg(get_msg());
                 break;
             default:
                 std::cerr<<"Incorrect character!"<<std::endl;
         }
     }
-    void send_to_server(){
-        std::string message;
+    bool connect_to_server(std::string ip, int port){
         boost::system::error_code e;
+        try{
+            tcp::endpoint end = tcp::endpoint(boost::asio::ip::address::from_string(ip, e), port);
+            socket_.connect(end, e);
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+            return 1;
+        }
+        return 0;
+    }
+    std::string get_msg(){
+        std::string message;
         std::cout<<"Enter your message: ";
         std::getline(std::cin, message);
-        message += '\n';
+        return (message+='\n');
+    }
+    void send_msg(std::string message){
         try{
-            boost::asio::ip::address ip = boost::asio::ip::address::from_string("192.168.1.241", e);
-            tcp::endpoint end = tcp::endpoint(ip, 13);
-            socket_.connect(end, e);
             boost::asio::write(socket_, boost::asio::buffer(message));
         }
         catch(std::exception &e){
@@ -58,23 +77,24 @@ public:
             std::cout<<"Message sent!"<<std::endl;
     }
 private:
-    char option;
+    char option[1];
     tcp::socket socket_;
 };
 
 int main(){
-
     std::cout<<"Welcome in chat client!"<<std::endl;
     boost::asio::io_context ioc;
+    std::string server_ip = "192.168.1.241";
     Client c(ioc);
-    for(;;){
-        c.print_help();
-        c.set_opt();
-        c.execute();
+    c.connect_to_server(server_ip, 13);
+    if(c.connect_to_server(server_ip, 13))
+        std::cerr<<"Can't connect to the server"<<std::endl;
+    else{
+        for(;;){
+            c.print_help();
+            c.set_opt();
+            c.execute();
+        }
     }
-    std::string h;
-    std::getline(std::cin, h);
-    std::cout<<h;
-
     return 0;
 }
