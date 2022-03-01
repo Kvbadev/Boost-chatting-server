@@ -1,3 +1,4 @@
+#include <boost/asio/is_applicable_property.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/system/detail/error_code.hpp>
@@ -14,9 +15,10 @@ using boost::asio::ip::tcp;
 class Client{
 public:
     typedef boost::shared_ptr<Client> ptr;
-    Client(std::string address){
-        this->id = count++;
-        this->address = address;
+    Client(std::string add){
+        id = 1;
+        count++;
+        address = add;
     }
     static void create(std::string addr){
         AllClients.push_back(ptr(new Client(addr)));
@@ -24,6 +26,13 @@ public:
     static int getCount(){
         return count;
     }
+    /* static void get_clients_data(std::string &text){ */
+    /*     text = "Hello World"; */
+    /*     /1* for(int i=0;i<count;i++){ *1/ */
+    /*     /1*     text+=AllClients[i]->address; *1/ */
+    /*     /1*     text+='\n'; *1/ */
+    /*     /1* } *1/ */
+    /* } */
     int getId(){
         return this->id;
     }
@@ -59,7 +68,7 @@ public:
         if(e)
             std::cerr<<"opt_handler: "<<e.what()<<std::endl;
         else{
-            std::cout<<"You chose option: "<<option<<std::endl;
+            std::cout<<"You have chosen option: "<<option<<std::endl;
             opt_executer();
         }
     }
@@ -68,7 +77,28 @@ public:
             case 's':
                 get_msg();
                 break;
+            case 'p':
+                send_all_clients();
+                break;
         }
+    }
+    bool send_all_clients(){
+        try{
+            clients = "Hello World";
+            boost::asio::async_write(socket_, boost::asio::buffer(clients, 11),
+                                     boost::bind(&Connection::send_clients_handler, shared_from_this(),
+                                     boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+            return 1;
+        }
+        return 0;
+    }
+    void send_clients_handler(const boost::system::error_code &e, size_t b){
+        if(e)
+            std::cerr<<e.what()<<std::endl;
+        else
+            std::cout<<"x sent correctly: "<<b<<std::endl;
     }
     bool get_msg(){
         try{
@@ -95,6 +125,7 @@ private:
     }
     tcp::socket socket_;
     boost::asio::streambuf message;
+    std::string clients;
     char option[1];
 };
 
