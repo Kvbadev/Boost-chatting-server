@@ -1,7 +1,3 @@
-#include <boost/asio/is_applicable_property.hpp>
-#include <boost/asio/placeholders.hpp>
-#include <boost/asio/read_until.hpp>
-#include <boost/system/detail/error_code.hpp>
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
@@ -40,6 +36,7 @@ public:
         return this->address;
     }
 private:
+    // inline to prevent reserving memory for variable in the other place in the program
     static inline int count = 0;
     static inline std::vector<ptr> AllClients;
     int id;

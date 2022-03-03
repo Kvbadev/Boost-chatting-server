@@ -50,7 +50,10 @@ public:
                 /* std::istream is(&clients_list_); */
                 /* std::string line; */
                 /* std::getline(is, line); */
-                std::cout<<clients_list_<<std::endl;
+                /* std::cout<<clients_list_<<std::endl; */
+                for(auto i=clients_list_.begin(); i!=clients_list_.end(); i++){
+                    std::cout<<*i;
+                }
                 }
                 break;
             default:
@@ -60,13 +63,16 @@ public:
     }
     void get_clients(){
         try{
-            boost::asio::read(socket_, boost::asio::buffer(clients_list_, 11));
+            clients_list_.resize(11);
+            boost::system::error_code e;
+            socket_.read_some(boost::asio::buffer(clients_list_), e);
+            if(e)
+                std::cerr<<"read_some:"<<e.what()<<std::endl;
         } catch(std::exception &e){
             std::cerr<<"get_clients: "<<e.what()<<std::endl;
         }
     }
     bool connect_to_server(std::string ip, int port){
-        boost::system::error_code e;
         try{
             tcp::endpoint end = tcp::endpoint(boost::asio::ip::address::from_string(ip), port);
             socket_.connect(end);
@@ -99,7 +105,8 @@ public:
 private:
     tcp::socket socket_;
     char option[1];
-    char clients_list_[11];
+    
+    std::vector<char> clients_list_;
 };
 
 int main(){
