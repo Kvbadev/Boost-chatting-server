@@ -3,6 +3,7 @@
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
+#include <boost/array.hpp>
 #include <string>
 
 using boost::asio::ip::tcp;
@@ -45,16 +46,6 @@ public:
             case 'p':
                 send_opt();
                 get_clients();
-                //curly braces because jumping initialization error without because of switch
-                {
-                /* std::istream is(&clients_list_); */
-                /* std::string line; */
-                /* std::getline(is, line); */
-                /* std::cout<<clients_list_<<std::endl; */
-                for(auto i=clients_list_.begin(); i!=clients_list_.end(); i++){
-                    std::cout<<*i;
-                }
-                }
                 break;
             default:
                 std::cerr<<"Incorrect character!"<<std::endl;
@@ -62,15 +53,29 @@ public:
         }
     }
     void get_clients(){
+        int msg_len = std::stoi(getMsgLength());
+        char *msg_buf = new char[msg_len];
         try{
-            clients_list_.resize(11);
             boost::system::error_code e;
-            socket_.read_some(boost::asio::buffer(clients_list_), e);
+            boost::asio::read(socket_, boost::asio::buffer(msg_buf, msg_len), e);
             if(e)
-                std::cerr<<"read_some:"<<e.what()<<std::endl;
+                std::cerr<<e.what()<<std::endl;
+            else
+                std::cout.write(msg_buf, msg_len);
         } catch(std::exception &e){
             std::cerr<<"get_clients: "<<e.what()<<std::endl;
         }
+        delete[] msg_buf;
+    }
+    std::string getMsgLength(){
+        boost::array<char, 4> x; boost::system::error_code e;
+        socket_.read_some(boost::asio::buffer(x, sizeof(int)), e);
+        if(e)
+            std::cerr<<e.what()<<std::endl;
+        std::string b;
+        for(auto i=x.begin(); i!=x.end(); i++)
+            b += *i;
+        return b;
     }
     bool connect_to_server(std::string ip, int port){
         try{
@@ -105,8 +110,7 @@ public:
 private:
     tcp::socket socket_;
     char option[1];
-    
-    std::vector<char> clients_list_;
+    boost::asio::streambuf clients_list_;
 };
 
 int main(){
@@ -122,11 +126,6 @@ int main(){
             c.set_opt();
             c.execute();
         }
-        /* char mes[6]; */
-        /* c.set_opt(); */
-        /* c.send_opt(); */
-        /* boost::asio::read(c.socket_, boost::asio::buffer(mes, 6)); */ 
-        /* std::cout<<mes; */
     }
     return 0;
 }

@@ -1,9 +1,12 @@
+#include <boost/asio/placeholders.hpp>
+#include <boost/system/detail/error_code.hpp>
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <string>
 #include <vector>
 
 using boost::asio::ip::tcp;
@@ -75,14 +78,16 @@ public:
                 get_msg();
                 break;
             case 'p':
-                send_all_clients();
+                clients = "Hi my name is slkfskldfjklsjlkfjsldjf and lollsjfkdsjlfs";
+                send_msg_length(clients.length());
                 break;
         }
     }
-    bool send_all_clients(){
+    bool send_all_clients(const boost::system::error_code &e, size_t, int l){
+        if(e)
+            std::cerr<<e.what()<<std::endl;
         try{
-            clients = "Hello World";
-            boost::asio::async_write(socket_, boost::asio::buffer(clients, 11),
+            boost::asio::async_write(socket_, boost::asio::buffer(clients, l),
                                      boost::bind(&Connection::send_clients_handler, shared_from_this(),
                                      boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
         } catch(std::exception &e){
@@ -90,6 +95,11 @@ public:
             return 1;
         }
         return 0;
+    }
+    void send_msg_length(int l){
+        std::cout<<"Length: "<<std::to_string(l)<<'\n';
+        boost::asio::async_write(socket_, boost::asio::buffer(std::to_string(l),sizeof(int)), 
+                                boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l));
     }
     void send_clients_handler(const boost::system::error_code &e, size_t b){
         if(e)
