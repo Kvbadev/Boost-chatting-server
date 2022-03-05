@@ -1,3 +1,5 @@
+#include <boost/asio/completion_condition.hpp>
+#include <boost/asio/is_applicable_property.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/system/detail/error_code.hpp>
 #include <exception>
@@ -6,6 +8,7 @@
 #include <boost/bind/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/array.hpp>
 #include <string>
 #include <vector>
 
@@ -67,6 +70,7 @@ public:
                                 boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred)
                                 );
     }
+private:
     void opt_handler(const boost::system::error_code &e, size_t){
         if(e)
             std::cerr<<"opt_handler: "<<e.what()<<std::endl;
@@ -81,15 +85,19 @@ public:
                 get_msg();
                 break;
             case 'p':
-                clients = Client::get_clients_data();
-                send_msg_length(clients.length());
+                std::string clients = Client::get_clients_data();
+                send_msg_length(clients.length(), clients);
                 break;
         }
-
         //loop
         read_opt();
     }
-    bool send_all_clients(const boost::system::error_code &e, size_t, int l){
+    void send_msg_length(int l, std::string c){
+        std::cout<<"Length: "<<std::to_string(l)<<'\n';
+        boost::asio::async_write(socket_, boost::asio::buffer(std::to_string(l),sizeof(int)), 
+                                boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, c));
+    }
+    bool send_all_clients(const boost::system::error_code &e, size_t, int l, std::string clients){
         if(e)
             std::cerr<<e.what()<<std::endl;
         try{
@@ -102,43 +110,38 @@ public:
         }
         return 0;
     }
-    void send_msg_length(int l){
-        std::cout<<"Length: "<<std::to_string(l)<<'\n';
-        boost::asio::async_write(socket_, boost::asio::buffer(std::to_string(l),sizeof(int)), 
-                                boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l));
-    }
     void send_clients_handler(const boost::system::error_code &e, size_t b){
         if(e)
             std::cerr<<e.what()<<std::endl;
         else
             std::cout<<"x sent correctly: "<<b<<std::endl;
     }
-    bool get_msg(){
+    
+    
+    void get_msg(){
+        get_msg_length();
+    }
+    void get_msg_length(){
+        auto x = new boost::array<char, 4>;
+        boost::asio::async_read(socket_, boost::asio::buffer(x, 2), 
+                                boost::bind(&Connection::get_msg_length_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, x));
+    }
+    void get_msg_length_handler(const boost::system::error_code &e, size_t, boost::array<char, 4>* x){
         try{
-            boost::asio::async_read_until(socket_, message, '\n', 
-                         boost::bind(&Connection::read_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+            std::string b;
+            for(auto i=x->begin(); i!=x->end(); i++)
+                b+= *i;
+            delete x;
+            int len = std::stoi(b);
+            std::cout<<len<<'\n';
         } catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
-            return 1;
         }
-        return 0;
     }
-    void read_handler(const boost::system::error_code& e, size_t){
-        if(e)
-            std::cerr<<"read_handler: "<<e.what()<<std::endl;
-        std::istream is(&message);
-        std::string line;
-        std::getline(is, line);
-        std::cout<<line<<std::endl;
-    }
-
 private:
     Connection(boost::asio::io_context &io_context_) : socket_(tcp::socket(io_context_))
-    {
-    }
+    {}
     tcp::socket socket_;
-    boost::asio::streambuf message;
-    std::string clients;
     char option[1];
 };
 

@@ -41,7 +41,10 @@ public:
                 break;
             case 's':
                 send_opt();
-                send_msg(get_msg());
+                {
+                std::string message = get_msg();
+                send_msg_len(message.length(), message);
+                }
                 break;
             case 'p':
                 send_opt();
@@ -99,21 +102,28 @@ public:
         std::string message;
         std::cout<<"Enter your message: ";
         std::getline(std::cin, message);
-        return (message+='\n');
+        return message;
+    }
+    void send_msg_len(int len, std::string message){
+        try{
+            std::cout<<"len: "<<len<<std::endl;
+            boost::system::error_code e;
+            boost::asio::write(socket_, boost::asio::buffer(std::to_string(len), sizeof(int)),e);
+            if(e)
+                std::cerr<<e.what()<<std::endl;
+            send_msg(message);
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+        }
     }
     void send_msg(std::string message){
         try{
-            boost::asio::write(socket_, boost::asio::buffer(message));
+            /* boost::asio::write(socket_, boost::asio::buffer(message)); */
+            std::cout<<"message: '"<<message<<"' sent!\n";
         }
         catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
         }
-    }
-    void handler(boost::system::error_code &e, size_t){
-        if(e)
-            std::cerr<<e.what()<<std::endl;
-        else
-            std::cout<<"Message sent!"<<std::endl;
     }
 private:
     tcp::socket socket_;
