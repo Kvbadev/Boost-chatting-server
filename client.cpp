@@ -16,7 +16,7 @@ public:
 
     void print_help(){
         std::cout<<"h - to show that message\n";
-        std::cout<<"p - to show all active clients(in construction)\n";
+        std::cout<<"p - to show all active clients\n";
         std::cout<<"S - to send message to particular client(in construction)\n";
         std::cout<<"s - to send message to server\n";
         std::cout<<"Select: ";
@@ -53,9 +53,10 @@ public:
         }
     }
     void get_clients(){
-        int msg_len = std::stoi(getMsgLength());
-        char *msg_buf = new char[msg_len];
+        char *msg_buf;
         try{
+            int msg_len = std::stoi(getMsgLength());
+            msg_buf = new char[msg_len];
             boost::system::error_code e;
             boost::asio::read(socket_, boost::asio::buffer(msg_buf, msg_len), e);
             if(e)
@@ -70,8 +71,15 @@ public:
     std::string getMsgLength(){
         boost::array<char, 4> x; boost::system::error_code e;
         socket_.read_some(boost::asio::buffer(x, sizeof(int)), e);
-        if(e)
-            std::cerr<<e.what()<<std::endl;
+        if(e){
+            if(e == boost::asio::error::eof){
+                std::cerr<<"Server does not respond"<<std::endl;
+                exit(0);
+            }
+            else
+                std::cerr<<e.what()<<std::endl;
+        }
+            
         std::string b;
         for(auto i=x.begin(); i!=x.end(); i++)
             b += *i;
@@ -116,7 +124,7 @@ private:
 int main(){
     std::cout<<"Welcome in chat client!"<<std::endl;
     boost::asio::io_context ioc;
-    std::string server_ip = "192.168.1.241";
+    std::string server_ip = "192.168.0.77";
     Client c(ioc);
     if((c.connect_to_server(server_ip, 13))==1)
         std::cerr<<"Can't connect to the server"<<std::endl;

@@ -14,24 +14,27 @@ using boost::asio::ip::tcp;
 class Client{
 public:
     typedef boost::shared_ptr<Client> ptr;
-    Client(std::string add){
-        id = 1;
-        count++;
-        address = add;
+    Client(std::string addr){
+        id = count++;
+        address = addr;
     }
     static void create(std::string addr){
         AllClients.push_back(ptr(new Client(addr)));
+        /* std::cout<<"New client id: "<<AllClients.at(count-1)->id<<" address: "<<AllClients.at(count-1)->address<<std::endl;; */
     }
     static int getCount(){
         return count;
     }
-    /* static void get_clients_data(std::string &text){ */
-    /*     text = "Hello World"; */
-    /*     /1* for(int i=0;i<count;i++){ *1/ */
-    /*     /1*     text+=AllClients[i]->address; *1/ */
-    /*     /1*     text+='\n'; *1/ */
-    /*     /1* } *1/ */
-    /* } */
+    static std::string get_clients_data(){
+        std::string text;
+        for(int i=0;i<count;i++){
+            text+=std::to_string(AllClients.at(i)->id);
+            text+=" - ";
+            text+=AllClients.at(i)->address;
+            text+='\n';
+        }
+        return text;
+    }
     int getId(){
         return this->id;
     }
@@ -78,10 +81,13 @@ public:
                 get_msg();
                 break;
             case 'p':
-                clients = "Hi my name is slkfskldfjklsjlkfjsldjf and lollsjfkdsjlfs";
+                clients = Client::get_clients_data();
                 send_msg_length(clients.length());
                 break;
         }
+
+        //loop
+        read_opt();
     }
     bool send_all_clients(const boost::system::error_code &e, size_t, int l){
         if(e)
@@ -177,7 +183,7 @@ int main(){
         throw e.what();
     }
     catch(...){
-        throw ;
+        throw;
     }
     return 0;
 }
