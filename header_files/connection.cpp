@@ -11,7 +11,6 @@
 #include "client.hpp"
 #include "connection.hpp"
 
-
 using boost::asio::ip::tcp;
 typedef boost::shared_ptr<Connection> ptr;
 
@@ -22,21 +21,24 @@ tcp::socket& Connection::socket(){
     return socket_;
 }
 void Connection::read_opt(){
-    boost::asio::async_read(socket_, boost::asio::buffer(option, 1),
-                            boost::bind(&Connection::opt_handler, shared_from_this(),
-                            boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred)
-                            );
-}
-void Connection::opt_handler(const boost::system::error_code &e, size_t){
-    if(e)
-        std::cerr<<"opt_handler: "<<e.what()<<std::endl;
-    else{
-        std::cout<<"You have chosen option: "<<option<<std::endl;
-        opt_executer();
+    try{
+        char *option = new char[1];
+        boost::asio::async_read(socket_, boost::asio::buffer(option, 1),
+                                boost::bind(&Connection::opt_handler, shared_from_this(),
+                                boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, option)
+                                );
+    } catch(std::exception &e){
+        std::cerr<<e.what()<<std::endl;
     }
 }
-void Connection::opt_executer(){
-    switch(*option){
+void Connection::opt_handler(const boost::system::error_code &e, size_t, char* opt){
+    if(e)
+        std::cerr<<"opt_handler: "<<e.what()<<std::endl;
+    else
+        std::cout<<"You have chosen option: "<<*opt<<std::endl;
+
+    //execute option
+    switch(*opt){
         case 's':
             get_msg();
             break;
@@ -49,6 +51,7 @@ void Connection::opt_executer(){
         case 'S':
             break;
     }
+    delete[] opt;
 }
 void Connection::send_clients_handler(const boost::system::error_code &e, size_t b){
     if(e)
@@ -99,16 +102,17 @@ void Connection::get_msg_length_handler(const boost::system::error_code &e, size
         //get Message
         char *message = new char[len];
         boost::asio::async_read(socket_, boost::asio::buffer(message, len),
-                                boost::bind(&Connection::getActMesHandler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, message));
+                                boost::bind(&Connection::getActMesHandler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, message, len));
     } catch(std::exception &e){
         std::cerr<<e.what()<<std::endl;
     }
 }
-void Connection::getActMesHandler(const boost::system::error_code &e, size_t, char *mes){
+void Connection::getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len){
     try{
         if(e)
             std::cerr<<e.what()<<std::endl;
-        std::cout<<mes<<std::endl;
+        std::cout.write(mes, len);
+        std::endl(std::cout);
         delete[] mes;
 
     } catch(std::exception &e){
