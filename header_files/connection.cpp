@@ -11,7 +11,6 @@
 #include "client.hpp"
 #include "connection.hpp"
 
-
 using boost::asio::ip::tcp;
 typedef boost::shared_ptr<Connection> ptr;
 
