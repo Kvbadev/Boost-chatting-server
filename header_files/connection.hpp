@@ -18,21 +18,19 @@ public:
     Connection(boost::asio::io_context &io_context_);
     tcp::socket& socket();
     void read_opt();
-    void opt_handler(const boost::system::error_code &e, size_t);
-    void opt_executer();
+    void opt_handler(const boost::system::error_code &e, size_t, char* opt);
     bool send_all_clients(const boost::system::error_code &e, size_t, int l, std::string clients);
     void send_clients_list(int l, std::string c);
     void send_clients_handler(const boost::system::error_code &e, size_t b);
     void get_msg();
     void get_msg_length();
     void get_msg_length_handler(const boost::system::error_code &e, size_t bytes, boost::array<char, 3>* x);
-    void getActMesHandler(const boost::system::error_code &e, size_t, char *mes);
+    void getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len);
     static ptr create(boost::asio::io_context& io_context){
         return ptr(new Connection(io_context));
     }
 
 private:
     tcp::socket socket_;
-    char option[1];
 };
 
