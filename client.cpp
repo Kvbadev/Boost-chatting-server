@@ -41,10 +41,7 @@ public:
                 break;
             case 's':
                 send_opt();
-                {
-                std::string message = get_msg();
-                send_msg_len(message.length(), message);
-                }
+                send_msg_len(get_msg());
                 break;
             case 'p':
                 send_opt();
@@ -104,11 +101,13 @@ public:
         std::getline(std::cin, message);
         return message;
     }
-    void send_msg_len(int len, std::string message){
+    void send_msg_len(std::string message){
         try{
+            std::string len = std::to_string(message.length());
+            changeLen(len);
             std::cout<<"len: "<<len<<std::endl;
             boost::system::error_code e;
-            boost::asio::write(socket_, boost::asio::buffer(std::to_string(len), sizeof(int)),e);
+            boost::asio::write(socket_, boost::asio::buffer(len),e);
             if(e)
                 std::cerr<<e.what()<<std::endl;
             send_msg(message);
@@ -116,9 +115,15 @@ public:
             std::cerr<<e.what()<<std::endl;
         }
     }
+    void changeLen(std::string &mes){
+        if(mes.size()==1)
+            mes.insert(0, 2, '-');
+        else if(mes.size()==2)
+            mes.insert(0,1,'-');
+    }
     void send_msg(std::string message){
         try{
-            /* boost::asio::write(socket_, boost::asio::buffer(message)); */
+            boost::asio::write(socket_, boost::asio::buffer(message));
             std::cout<<"message: '"<<message<<"' sent!\n";
         }
         catch(std::exception &e){
@@ -134,7 +139,7 @@ private:
 int main(){
     std::cout<<"Welcome in chat client!"<<std::endl;
     boost::asio::io_context ioc;
-    std::string server_ip = "192.168.0.77";
+    std::string server_ip = "192.168.0.20";
     Client c(ioc);
     if((c.connect_to_server(server_ip, 13))==1)
         std::cerr<<"Can't connect to the server"<<std::endl;
