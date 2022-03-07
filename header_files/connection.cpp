@@ -50,6 +50,7 @@ void Connection::opt_handler(const boost::system::error_code &e, size_t, char* o
         case 'p':
             {
             std::string clients = Client::get_clients_data();
+            /* std::string clients = "hello"; */
             send_clients_list(clients.length(), clients);
             }
             break;

@@ -22,14 +22,20 @@ public:
     void add_message(int id, std::string message);
 
     static std::string get_clients_data(){
-        std::string text;
-        for(int i=0;i<count;i++){
-            text+=std::to_string(AllClients.at(i)->id);
-            text+=" - ";
-            text+=AllClients.at(i)->get_address();
-            text+='\n';
+        try{
+            std::string text;
+            for(int i=0;i<count;i++){
+                /* std::cout<<"id: "<<AllClients.at(i)->get_id()<<std::endl; */
+                text+=std::to_string(AllClients.at(i)->get_id());
+                text+=" - ";
+                text+=AllClients.at(i)->get_address();
+                text+='\n';
+            }
+            return text;
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
         }
-        return text;
+        return 0;
     }
     auto get_inbox(){
         return this->inbox;
@@ -52,7 +58,6 @@ public:
     static inline int count = 0;
 private:
     Connection::ptr client_conn;
-    int id;
     std::vector<inbox_message> inbox;
     // inline to prevent reserving memory for variable in the other place in the program
     static inline std::vector<Client::ptr> AllClients;
