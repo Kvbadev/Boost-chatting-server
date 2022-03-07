@@ -19,38 +19,65 @@ public:
         std::cout<<"p - to show all active clients\n";
         std::cout<<"S - to send message to particular client(in construction)\n";
         std::cout<<"s - to send message to server\n";
+        std::cout<<"o - check your messages\n";
         std::cout<<"Select: ";
     }
-    void set_opt(){
-        std::cin>>option;
-        std::cin.ignore();
-    }
-    bool send_opt(){
+    char* set_opt(){
         try{
-            boost::asio::write(socket_, boost::asio::buffer(option));
+            char *opt = new char[1];
+            std::cin>>opt;
+            return opt;
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
+            return 0;
+        }
+    }
+    bool send_opt(char *option){
+        try{
+            boost::asio::write(socket_, boost::asio::buffer(option, 1));
+            delete option;
         } catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
             return 1;
         }
         return 0;
     }
-    void execute(){
-        switch(*option){
+    void execute(char* opt){
+        switch(*opt){
             case 'h':
                 print_help();
                 break;
             case 's':
-                send_opt();
-                send_msg_len(get_msg());
+                send_opt(opt);
+                send_len_and_msg(get_msg());
                 break;
             case 'p':
-                send_opt();
+                send_opt(opt);
                 get_clients();
+                break;
+            case 'S':
+                send_opt(opt);
+                {
+                //max 9 at the moment
+                int n = getClientNum();
+                std::string message = get_msg();
+                message = std::to_string(n) + message;
+                send_len_and_msg(message);
+                break;
+                }
+            case 'o':
+                send_opt(opt);
                 break;
             default:
                 std::cerr<<"Incorrect character!"<<std::endl;
                 break;
         }
+    }
+    int getClientNum(){
+        int num;
+        std::cout<<"Select client that You want to send message to: ";
+        std::cin>>num;
+        return num;
     }
     void get_clients(){
         char *msg_buf;
@@ -58,19 +85,21 @@ public:
             int msg_len = std::stoi(getMsgLength());
             msg_buf = new char[msg_len];
             boost::system::error_code e;
-            boost::asio::read(socket_, boost::asio::buffer(msg_buf, msg_len), e);
+            socket_.read_some(boost::asio::buffer(msg_buf, msg_len), e);
             if(e)
                 std::cerr<<e.what()<<std::endl;
-            else
+            else{
                 std::cout.write(msg_buf, msg_len);
+                std::flush(std::cout);
+            }
+            delete[] msg_buf;
         } catch(std::exception &e){
             std::cerr<<"get_clients: "<<e.what()<<std::endl;
         }
-        delete[] msg_buf;
     }
     std::string getMsgLength(){
         boost::array<char, 4> x; boost::system::error_code e;
-        socket_.read_some(boost::asio::buffer(x, sizeof(int)), e);
+        socket_.read_some(boost::asio::buffer(x), e);
         if(e){
             if(e == boost::asio::error::eof){
                 std::cerr<<"Server does not respond"<<std::endl;
@@ -97,20 +126,21 @@ public:
     }
     std::string get_msg(){
         std::string message;
+        std::cin.ignore();
         std::cout<<"Enter your message: ";
         std::getline(std::cin, message);
         return message;
     }
-    void send_msg_len(std::string message){
+    void send_len_and_msg(std::string message){
         try{
             std::string len = std::to_string(message.length());
             changeLen(len);
             std::cout<<"len: "<<len<<std::endl;
             boost::system::error_code e;
-            boost::asio::write(socket_, boost::asio::buffer(len),e);
+            boost::asio::write(socket_, boost::asio::buffer(len, 3),e);
+            send_msg(message);
             if(e)
                 std::cerr<<e.what()<<std::endl;
-            send_msg(message);
         } catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
         }
@@ -132,22 +162,19 @@ public:
     }
 private:
     tcp::socket socket_;
-    char option[1];
-    boost::asio::streambuf clients_list_;
 };
 
 int main(){
     std::cout<<"Welcome in chat client!"<<std::endl;
     boost::asio::io_context ioc;
-    std::string server_ip = "192.168.0.20";
+    std::string server_ip = "192.168.93.144";
     Client c(ioc);
     if((c.connect_to_server(server_ip, 13))==1)
         std::cerr<<"Can't connect to the server"<<std::endl;
     else{
         c.print_help();
         for(;;){
-            c.set_opt();
-            c.execute();
+            c.execute(c.set_opt());
         }
     }
     return 0;

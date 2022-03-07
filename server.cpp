@@ -29,7 +29,7 @@ public:
 private:
     void accept_handler(Connection::ptr conn, const boost::system::error_code& error){
         if(!error){
-            Client::create_client(conn->socket().remote_endpoint().address().to_string(), conn);
+            Client::create_client(conn);
             conn->read_opt();
         }
         else

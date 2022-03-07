@@ -8,12 +8,18 @@
 #include <boost/array.hpp>
 #include "connection.hpp"
 
-class Client{
+struct inbox_message{
+    int sender_id;
+    std::string message;
+};
+
+class Client : public boost::enable_shared_from_this<Client>{
 public:
     typedef boost::shared_ptr<Client> ptr;
-    Client(std::string addr, Connection::ptr x);
+    Client(Connection::ptr x);
     std::string get_address();
-    int getId();
+    int get_id();
+    void add_message(int id, std::string message);
 
     static std::string get_clients_data(){
         std::string text;
@@ -25,13 +31,29 @@ public:
         }
         return text;
     }
-    static void create_client(std::string addr, Connection::ptr x){
-        AllClients.push_back(Client::ptr(new Client(addr, x)));
+    auto get_inbox(){
+        return this->inbox;
     }
+    static void create_client(Connection::ptr x){
+        AllClients.push_back(Client::ptr(new Client(x)));
+    }
+    static auto get_AllClients(){
+        return AllClients;
+    }
+    static void show_messages(int id){
+        auto j = AllClients;
+        auto x = AllClients.at(id)->get_inbox();
+        for(auto i = x.begin(); i!=x.end();i++){
+            
+            std::cout<<i->sender_id<<":";
+            std::cout<<i->message<<std::endl;
+        }
+    }
+    static inline int count = 0;
 private:
     Connection::ptr client_conn;
     int id;
+    std::vector<inbox_message> inbox;
     // inline to prevent reserving memory for variable in the other place in the program
-    static inline int count = 0;
     static inline std::vector<Client::ptr> AllClients;
 };
