@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/system/detail/error_code.hpp>
+#include <boost/system/system_error.hpp>
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
@@ -37,10 +38,12 @@ void Connection::read_opt(){
     }
 }
 void Connection::opt_handler(const boost::system::error_code &e, size_t, char* opt){
+    /* if(e==boost::asio::error::eof){ */
+    /*     Client::remove_client(this->get_id()); */
+    /* } */
     if(e)
         std::cerr<<"opt_handler: "<<e.what()<<std::endl;
-    else
-        std::cout<<"You have chosen option: "<<*opt<<std::endl;
+    
 
     //execute option
     switch(*opt){
@@ -49,8 +52,8 @@ void Connection::opt_handler(const boost::system::error_code &e, size_t, char* o
             break;
         case 'p':
             {
-            std::string clients = Client::get_clients_data();
-            /* std::string clients = "hello"; */
+            int clientID = this->get_id();
+            std::string clients = Client::get_clients_data(clientID);
             send_clients_list(clients.length(), clients);
             }
             break;
@@ -58,7 +61,8 @@ void Connection::opt_handler(const boost::system::error_code &e, size_t, char* o
             get_msg_length_and_content(SAVE);
             break;
         case 'o':
-            Client::show_messages(this->get_id());
+            std::string data = Client::get_messages(this->get_id());
+            send_messages_to_client(data.length(), data);
     }
     delete opt;
 }
@@ -66,7 +70,6 @@ void Connection::send_clients_handler(const boost::system::error_code &e, size_t
     if(e)
         std::cerr<<e.what()<<std::endl;
     else
-        std::cout<<"x sent correctly: "<<b<<std::endl;
 
     //loop
     read_opt();
@@ -85,9 +88,34 @@ bool Connection::send_all_clients(const boost::system::error_code &e, size_t, in
     return 0;
 }
 void Connection::send_clients_list(int l, std::string c){
-    std::cout<<"Length: "<<std::to_string(l)<<'\n';
     boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l),c.size()), 
                             boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, c));
+}
+void Connection::send_messages_to_client(int l, std::string &x){
+    if(l>0)
+        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
+                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
+    else{
+        x = "No messages!";
+        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
+                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
+    }
+
+}
+void Connection::send_messages(const boost::system::error_code &e, size_t, int len, std::string x){
+    if(e)
+        std::cerr<<e.what()<<std::endl;
+    else{
+        boost::asio::async_write(socket(), boost::asio::buffer(x, len),
+                            boost::bind(&Connection::send_messages_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+    }
+}
+void Connection::send_messages_handler(const boost::system::error_code &e, size_t b){
+    if(e)
+        std::cerr<<e.what()<<std::endl;
+
+    //loop
+    read_opt();
 }
 void Connection::get_msg_length_and_content(bool flag){
     const int len = 3;
@@ -105,7 +133,6 @@ void Connection::get_msg_length_handler(const boost::system::error_code &e, size
         delete[] x;
         int len = std::stoi(b);
 
-        std::cout<<"len: "<<len<<std::endl;
         //get Message
         char *message = new char[len];
         boost::asio::async_read(socket_, boost::asio::buffer(message, len),
@@ -127,11 +154,11 @@ void Connection::getActMesHandler(const boost::system::error_code &e, size_t, ch
             std::string tmp;
             tmp = mes[0];
             int clientID = std::stoi(tmp);
-            //
             std::string message;
             for(int i=1;i<len;i++)
                 message+=mes[i];
-            writeToClients(this->id, clientID, message);
+            int senderID = this->get_id();
+            writeToClients(senderID, clientID, message);
         }
         delete[] mes;
 

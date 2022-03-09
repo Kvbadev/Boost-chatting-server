@@ -67,6 +67,7 @@ public:
                 }
             case 'o':
                 send_opt(opt);
+                get_clients();
                 break;
             default:
                 std::cerr<<"Incorrect character!"<<std::endl;
@@ -108,7 +109,6 @@ public:
             else
                 std::cerr<<e.what()<<std::endl;
         }
-            
         std::string b;
         for(auto i=x.begin(); i!=x.end(); i++)
             b += *i;
@@ -135,7 +135,7 @@ public:
         try{
             std::string len = std::to_string(message.length());
             changeLen(len);
-            std::cout<<"len: "<<len<<std::endl;
+            /* std::cout<<"len: "<<len<<std::endl; */
             boost::system::error_code e;
             boost::asio::write(socket_, boost::asio::buffer(len, 3),e);
             send_msg(message);
@@ -154,7 +154,7 @@ public:
     void send_msg(std::string message){
         try{
             boost::asio::write(socket_, boost::asio::buffer(message));
-            std::cout<<"message: '"<<message<<"' sent!\n";
+            /* std::cout<<"message: '"<<message<<"' sent!\n"; */
         }
         catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
@@ -167,9 +167,10 @@ private:
 int main(){
     std::cout<<"Welcome in chat client!"<<std::endl;
     boost::asio::io_context ioc;
-    std::string server_ip = "192.168.93.144";
+    const std::string server_ip = "192.168.0.20";
+    const int port = 3033;
     Client c(ioc);
-    if((c.connect_to_server(server_ip, 13))==1)
+    if((c.connect_to_server(server_ip, port))==1)
         std::cerr<<"Can't connect to the server"<<std::endl;
     else{
         c.print_help();

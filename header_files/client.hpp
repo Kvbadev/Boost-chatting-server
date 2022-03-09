@@ -21,14 +21,15 @@ public:
     int get_id();
     void add_message(int id, std::string message);
 
-    static std::string get_clients_data(){
+    static std::string get_clients_data(int ownID){
         try{
             std::string text;
             for(int i=0;i<count;i++){
-                /* std::cout<<"id: "<<AllClients.at(i)->get_id()<<std::endl; */
                 text+=std::to_string(AllClients.at(i)->get_id());
                 text+=" - ";
                 text+=AllClients.at(i)->get_address();
+                if(AllClients.at(i)->get_id()==ownID)
+                    text+=" (Me)";
                 text+='\n';
             }
             return text;
@@ -43,17 +44,29 @@ public:
     static void create_client(Connection::ptr x){
         AllClients.push_back(Client::ptr(new Client(x)));
     }
+    /* static void remove_client(int id){ */
+    /*     auto x = AllClients.begin(); */
+    /*     AllClients.erase((AllClients.begin()+id)); */
+    /*     Client::count--; */
+    /* } */
     static auto get_AllClients(){
         return AllClients;
     }
-    static void show_messages(int id){
-        auto j = AllClients;
-        auto x = AllClients.at(id)->get_inbox();
-        for(auto i = x.begin(); i!=x.end();i++){
-            
-            std::cout<<i->sender_id<<":";
-            std::cout<<i->message<<std::endl;
+    static std::string get_messages(int id){
+        try{
+            std::string data;
+            auto x = AllClients.at(id)->get_inbox();
+            for(auto i = x.begin(); i!=x.end();i++){
+                data+=std::to_string(i->sender_id);
+                data+=" - ";
+                data+=i->message;
+                data+='\n';
+            }
+            return data;
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
         }
+        return 0;
     }
     static inline int count = 0;
 private:
