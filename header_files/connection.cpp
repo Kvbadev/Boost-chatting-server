@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/system/detail/error_code.hpp>
+#include <boost/system/system_error.hpp>
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
@@ -11,14 +12,19 @@
 #include "client.hpp"
 #include "connection.hpp"
 
+#define READ 0
+#define SAVE 1
+
 using boost::asio::ip::tcp;
-typedef boost::shared_ptr<Connection> ptr;
 
 Connection::Connection(boost::asio::io_context &io_context_) : socket_(tcp::socket(io_context_))
-{}
+{this->id = Client::count;}
 
 tcp::socket& Connection::socket(){
     return socket_;
+}
+int Connection::get_id(){
+    return this->id;
 }
 void Connection::read_opt(){
     try{
@@ -32,32 +38,38 @@ void Connection::read_opt(){
     }
 }
 void Connection::opt_handler(const boost::system::error_code &e, size_t, char* opt){
+    /* if(e==boost::asio::error::eof){ */
+    /*     Client::remove_client(this->get_id()); */
+    /* } */
     if(e)
         std::cerr<<"opt_handler: "<<e.what()<<std::endl;
-    else
-        std::cout<<"You have chosen option: "<<*opt<<std::endl;
+    
 
     //execute option
     switch(*opt){
         case 's':
-            get_msg();
+            get_msg_length_and_content(READ);
             break;
         case 'p':
             {
-            std::string clients = Client::get_clients_data();
+            int clientID = this->get_id();
+            std::string clients = Client::get_clients_data(clientID);
             send_clients_list(clients.length(), clients);
             }
             break;
         case 'S':
+            get_msg_length_and_content(SAVE);
             break;
+        case 'o':
+            std::string data = Client::get_messages(this->get_id());
+            send_messages_to_client(data.length(), data);
     }
-    delete[] opt;
+    delete opt;
 }
 void Connection::send_clients_handler(const boost::system::error_code &e, size_t b){
     if(e)
         std::cerr<<e.what()<<std::endl;
     else
-        std::cout<<"x sent correctly: "<<b<<std::endl;
 
     //loop
     read_opt();
@@ -76,43 +88,78 @@ bool Connection::send_all_clients(const boost::system::error_code &e, size_t, in
     return 0;
 }
 void Connection::send_clients_list(int l, std::string c){
-    std::cout<<"Length: "<<std::to_string(l)<<'\n';
     boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l),c.size()), 
                             boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, c));
 }
-void Connection::get_msg(){
-    get_msg_length();
+void Connection::send_messages_to_client(int l, std::string &x){
+    if(l>0)
+        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
+                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
+    else{
+        x = "No messages!";
+        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
+                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
+    }
+
 }
-void Connection::get_msg_length(){
-    auto x = new boost::array<char, 3>;
-    boost::asio::async_read(socket_, boost::asio::buffer(x, 3), 
-                            boost::bind(&Connection::get_msg_length_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, x));
+void Connection::send_messages(const boost::system::error_code &e, size_t, int len, std::string x){
+    if(e)
+        std::cerr<<e.what()<<std::endl;
+    else{
+        boost::asio::async_write(socket(), boost::asio::buffer(x, len),
+                            boost::bind(&Connection::send_messages_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+    }
 }
-void Connection::get_msg_length_handler(const boost::system::error_code &e, size_t bytes, boost::array<char, 3>* x){
+void Connection::send_messages_handler(const boost::system::error_code &e, size_t b){
+    if(e)
+        std::cerr<<e.what()<<std::endl;
+
+    //loop
+    read_opt();
+}
+void Connection::get_msg_length_and_content(bool flag){
+    const int len = 3;
+    char *x = new char[len];
+    boost::asio::async_read(socket_, boost::asio::buffer(x, len), 
+                            boost::bind(&Connection::get_msg_length_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, x, len, flag));
+}
+void Connection::get_msg_length_handler(const boost::system::error_code &e, size_t, char* x, int len, bool flag){
     try{
-        std::cout<<"bytes: "<<bytes<<std::endl;
         std::string b;
-        for(auto i=x->begin(); i!=x->end(); i++){
-            if(*i!='-')
-                b+= *i;
+        for(int i=0;i<len;i++){
+            if(x[i]!='-')
+                b+= x[i];
         }
-        delete x;
+        delete[] x;
         int len = std::stoi(b);
-        std::cout<<"len: "<<len<<std::endl;
+
         //get Message
         char *message = new char[len];
         boost::asio::async_read(socket_, boost::asio::buffer(message, len),
-                                boost::bind(&Connection::getActMesHandler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, message, len));
+                                boost::bind(&Connection::getActMesHandler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, message, len, flag));
     } catch(std::exception &e){
         std::cerr<<e.what()<<std::endl;
     }
 }
-void Connection::getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len){
+void Connection::getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len, bool flag){
     try{
         if(e)
             std::cerr<<e.what()<<std::endl;
-        std::cout.write(mes, len);
-        std::endl(std::cout);
+        if(flag==READ){
+            std::cout.write(mes, len);
+            std::endl(std::cout);
+        }
+        else{
+            //idk why, but it must be done that way
+            std::string tmp;
+            tmp = mes[0];
+            int clientID = std::stoi(tmp);
+            std::string message;
+            for(int i=1;i<len;i++)
+                message+=mes[i];
+            int senderID = this->get_id();
+            writeToClients(senderID, clientID, message);
+        }
         delete[] mes;
 
     } catch(std::exception &e){
@@ -122,6 +169,6 @@ void Connection::getActMesHandler(const boost::system::error_code &e, size_t, ch
     //loop
     read_opt();
 }
-
-
-
+void Connection::writeToClients(int sender, int id, std::string message){
+    Client::get_AllClients().at(id)->add_message(sender, message);
+}

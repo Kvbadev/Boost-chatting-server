@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#define SERVER_PORT 3033
+
 /* #include "header_files/connection.hpp" //not required */
 #include "header_files/client.hpp"
 
@@ -16,7 +18,7 @@ class Server{
 
 public:
     Server(boost::asio::io_context &io_context) : ios(io_context)
-                                                , acceptor_(tcp::acceptor(io_context, tcp::endpoint(tcp::v4(), 13)))
+                                                , acceptor_(tcp::acceptor(io_context, tcp::endpoint(tcp::v4(), SERVER_PORT)))
     {
         std::cout<<"Server has been created!"<<std::endl;
     }
@@ -29,7 +31,7 @@ public:
 private:
     void accept_handler(Connection::ptr conn, const boost::system::error_code& error){
         if(!error){
-            Client::create_client(conn->socket().remote_endpoint().address().to_string(), conn);
+            Client::create_client(conn);
             conn->read_opt();
         }
         else
