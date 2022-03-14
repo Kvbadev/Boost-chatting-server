@@ -14,7 +14,7 @@ public:
     Client(boost::asio::io_context &io_context_) : socket_(tcp::socket(io_context_))
     {}
 
-    void print_help(){
+   void print_help(){
         std::cout<<"h - to show that message\n";
         std::cout<<"p - to show all active clients\n";
         std::cout<<"S - to send message to particular client(in construction)\n";
@@ -46,6 +46,7 @@ public:
         switch(*opt){
             case 'h':
                 print_help();
+                delete[] opt;
                 break;
             case 's':
                 send_opt(opt);
@@ -53,7 +54,7 @@ public:
                 break;
             case 'p':
                 send_opt(opt);
-                get_clients();
+                get_data();
                 break;
             case 'S':
                 send_opt(opt);
@@ -67,10 +68,11 @@ public:
                 }
             case 'o':
                 send_opt(opt);
-                get_clients();
+                get_data();
                 break;
             default:
                 std::cerr<<"Incorrect character!"<<std::endl;
+                delete[] opt;
                 break;
         }
     }
@@ -80,7 +82,7 @@ public:
         std::cin>>num;
         return num;
     }
-    void get_clients(){
+    void get_data(){
         char *msg_buf;
         try{
             int msg_len = std::stoi(getMsgLength());
@@ -95,7 +97,7 @@ public:
             }
             delete[] msg_buf;
         } catch(std::exception &e){
-            std::cerr<<"get_clients: "<<e.what()<<std::endl;
+            std::cerr<<"get_data: "<<e.what()<<std::endl;
         }
     }
     std::string getMsgLength(){

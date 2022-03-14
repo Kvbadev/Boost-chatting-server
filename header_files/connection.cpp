@@ -61,8 +61,9 @@ void Connection::opt_handler(const boost::system::error_code &e, size_t, char* o
             get_msg_length_and_content(SAVE);
             break;
         case 'o':
-            std::string data = Client::get_messages(shared_from_this()->get_id());
-            send_messages_to_client(data.length(), data);
+            std::string *data = new std::string(Client::get_messages(shared_from_this()->get_id()));
+            std::string *len = new std::string(std::to_string(data->size()));
+            send_messages_to_client(len,data);
     }
     delete opt;
 }
@@ -85,6 +86,7 @@ bool Connection::send_all_clients(const boost::system::error_code &e, size_t, st
                                  boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, clients));
     } catch(std::exception &e){
         std::cerr<<e.what()<<std::endl;
+        delete len;
         return 1;
     }
     return 0;
@@ -92,38 +94,45 @@ bool Connection::send_all_clients(const boost::system::error_code &e, size_t, st
 void Connection::send_clients_handler(const boost::system::error_code &e, size_t b, std::string *clients){
     if(e)
         std::cerr<<e.what()<<std::endl;
-    else
-        delete clients;
+    delete clients;
 
     //loop
     read_opt();
 }
 
-void Connection::send_messages_to_client(int l, std::string &x){
-    if(l>0)
-        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
-                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
-    else{
-        x = "No messages!";
-        boost::asio::async_write(socket(), boost::asio::buffer(std::to_string(l), x.size()),
-                                boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, l, x));
-    }
-
+void Connection::send_messages_to_client(std::string *len, std::string *messges){
+    const int len_msg_length = 3;
+    if(len->size()==1)
+        len->insert(0, 2, '-');
+    else if(len->size()==2)
+        len->insert(0, 1, '-');
+    boost::asio::async_write(socket(), boost::asio::buffer(*len, len_msg_length),
+                            boost::bind(&Connection::send_messages, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, len, messges));
 }
-void Connection::send_messages(const boost::system::error_code &e, size_t, int len, std::string x){
-    if(e)
+void Connection::send_messages(const boost::system::error_code &e, size_t, std::string *len, std::string *x){
+    try{
+        delete len;
+        if(e)
+            std::cerr<<e.what()<<std::endl;
+        else{
+            boost::asio::async_write(socket(), boost::asio::buffer(*x, x->size()),
+                                boost::bind(&Connection::send_messages_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, x));
+        }
+    } catch(std::exception &e){
         std::cerr<<e.what()<<std::endl;
-    else{
-        boost::asio::async_write(socket(), boost::asio::buffer(x, len),
-                            boost::bind(&Connection::send_messages_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
 }
-void Connection::send_messages_handler(const boost::system::error_code &e, size_t b){
-    if(e)
-        std::cerr<<e.what()<<std::endl;
+void Connection::send_messages_handler(const boost::system::error_code &e, size_t b, std::string *to_remove){
+    try{
+        delete to_remove;
+        if(e)
+            std::cerr<<e.what()<<std::endl;
 
-    //loop
-    read_opt();
+        //loop
+        read_opt();
+    } catch(std::exception &e){
+        std::cerr<<e.what()<<std::endl;
+    }
 }
 void Connection::get_msg_length_and_content(bool flag){
     const int len = 3;

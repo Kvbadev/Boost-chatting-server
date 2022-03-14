@@ -27,9 +27,9 @@ public:
     void get_msg_length_handler(const boost::system::error_code &e, size_t, char* x, int len, bool flag);
     void getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len, bool flag);
     void writeToClients(int sender, int id, std::string message);
-    void send_messages_to_client(int l, std::string &x);
-    void send_messages(const boost::system::error_code &e, size_t, int len, std::string x);
-    void send_messages_handler(const boost::system::error_code &e, size_t b);
+    void send_messages_to_client(std::string *len, std::string *messges);
+    void send_messages(const boost::system::error_code &e, size_t, std::string *len, std::string *x);
+    void send_messages_handler(const boost::system::error_code &e, size_t b, std::string *to_remove);
     static ptr create(boost::asio::io_context& io_context){
         return ptr(new Connection(io_context));
     }

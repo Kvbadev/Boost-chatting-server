@@ -62,6 +62,8 @@ public:
                 data+=i->message;
                 data+='\n';
             }
+            if(!(data.size()))
+                data += "No messages!\n";
             return data;
         } catch(std::exception &e){
             std::cerr<<e.what()<<std::endl;
