@@ -99,20 +99,30 @@ public:
         }
     }
     std::string getMsgLength(){
-        boost::array<char, 4> x; boost::system::error_code e;
-        socket_.read_some(boost::asio::buffer(x), e);
-        if(e){
-            if(e == boost::asio::error::eof){
-                std::cerr<<"Server does not respond"<<std::endl;
-                exit(0);
+        try{
+            const int len = 3; //max msg len = 999
+            char *tmp = new char[len];
+            boost::system::error_code e;
+            socket_.read_some(boost::asio::buffer(tmp, len), e);
+            if(e){
+                if(e == boost::asio::error::eof){
+                    std::cerr<<"Server is not responding"<<std::endl;
+                    exit(0);
+                }
+                else
+                    std::cerr<<e.what()<<std::endl;
             }
-            else
-                std::cerr<<e.what()<<std::endl;
+            std::string b;
+            for(int i=0;i<len;i++){
+                if(tmp[i]!='-')
+                    b+=tmp[i];
+            }
+            delete[] tmp;
+            return b;
+        } catch(std::exception &e){
+            std::cerr<<e.what()<<std::endl;
         }
-        std::string b;
-        for(auto i=x.begin(); i!=x.end(); i++)
-            b += *i;
-        return b;
+        return 0;
     }
     bool connect_to_server(std::string ip, int port){
         try{

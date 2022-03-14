@@ -20,9 +20,9 @@ public:
     void read_opt();
     int get_id();
     void opt_handler(const boost::system::error_code &e, size_t, char* opt);
-    bool send_all_clients(const boost::system::error_code &e, size_t, int l, std::string clients);
-    void send_clients_list(int l, std::string c);
-    void send_clients_handler(const boost::system::error_code &e, size_t b);
+    void send_clients_list(std::string *mes, std::string *len);
+    bool send_all_clients(const boost::system::error_code &e, size_t, std::string *clients, std::string *len);
+    void send_clients_handler(const boost::system::error_code &e, size_t b, std::string *clients);
     void get_msg_length_and_content(bool flag);
     void get_msg_length_handler(const boost::system::error_code &e, size_t, char* x, int len, bool flag);
     void getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len, bool flag);
