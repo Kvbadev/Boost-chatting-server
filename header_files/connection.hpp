@@ -20,16 +20,16 @@ public:
     void read_opt();
     int get_id();
     void opt_handler(const boost::system::error_code &e, size_t, char* opt);
-    bool send_all_clients(const boost::system::error_code &e, size_t, int l, std::string clients);
-    void send_clients_list(int l, std::string c);
-    void send_clients_handler(const boost::system::error_code &e, size_t b);
+    void send_clients_list(std::string *mes, std::string *len);
+    bool send_all_clients(const boost::system::error_code &e, size_t, std::string *clients, std::string *len);
+    void send_clients_handler(const boost::system::error_code &e, size_t b, std::string *clients);
     void get_msg_length_and_content(bool flag);
     void get_msg_length_handler(const boost::system::error_code &e, size_t, char* x, int len, bool flag);
     void getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len, bool flag);
     void writeToClients(int sender, int id, std::string message);
-    void send_messages_to_client(int l, std::string &x);
-    void send_messages(const boost::system::error_code &e, size_t, int len, std::string x);
-    void send_messages_handler(const boost::system::error_code &e, size_t b);
+    void send_messages_to_client(std::string *len, std::string *messges);
+    void send_messages(const boost::system::error_code &e, size_t, std::string *len, std::string *x);
+    void send_messages_handler(const boost::system::error_code &e, size_t b, std::string *to_remove);
     static ptr create(boost::asio::io_context& io_context){
         return ptr(new Connection(io_context));
     }
