@@ -1,4 +1,3 @@
-#include <boost/asio.hpp>
 #include <exception>
 #include <iostream>
 #include <boost/asio.hpp>
@@ -30,6 +29,8 @@ public:
     void send_messages_to_client(std::string *len, std::string *messges);
     void send_messages(const boost::system::error_code &e, size_t, std::string *len, std::string *x);
     void send_messages_handler(const boost::system::error_code &e, size_t b, std::string *to_remove);
+    bool has_closed(const boost::system::error_code &e);
+    void set_id(size_t idd);
     static ptr create(boost::asio::io_context& io_context){
         return ptr(new Connection(io_context));
     }

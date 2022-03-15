@@ -1,16 +1,6 @@
-#include <boost/asio.hpp>
-#include <boost/asio/placeholders.hpp>
-#include <boost/system/detail/error_code.hpp>
-#include <boost/system/system_error.hpp>
-#include <exception>
-#include <iostream>
-#include <boost/asio.hpp>
-#include <boost/bind/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/array.hpp>
 #include "client.hpp"
 #include "connection.hpp"
+#include <boost/system/detail/error_code.hpp>
 
 #define READ 0
 #define SAVE 1
@@ -18,7 +8,7 @@
 using boost::asio::ip::tcp;
 
 Connection::Connection(boost::asio::io_context &io_context_) : socket_(tcp::socket(io_context_))
-{this->id = Client::count;}
+{}
 
 tcp::socket& Connection::socket(){
     return socket_;
@@ -26,6 +16,20 @@ tcp::socket& Connection::socket(){
 int Connection::get_id(){
     return this->id;
 }
+bool Connection::has_closed(const boost::system::error_code &e){
+    try{
+        if(e==boost::asio::error::eof){
+            Client::remove_client(get_id());
+            return 1;
+        }
+    } catch(std::exception &e){
+        std::cerr<<e.what()<<std::endl;
+    }
+    return 0;
+}
+void Connection::set_id(size_t idd){
+    this->id=idd;
+} 
 void Connection::read_opt(){
     try{
         char *option = new char[1];
@@ -38,13 +42,10 @@ void Connection::read_opt(){
     }
 }
 void Connection::opt_handler(const boost::system::error_code &e, size_t, char* opt){
-    /* if(e==boost::asio::error::eof){ */
-    /*     Client::remove_client(this->get_id()); */
-    /* } */
-    if(e)
-        std::cerr<<"opt_handler: "<<e.what()<<std::endl;
-    
-
+    if(!has_closed(e)){
+        if(e)
+            std::cerr<<"opt_handler: "<<e.what()<<std::endl;
+    }
     //execute option
     switch(*opt){
         case 's':
@@ -77,8 +78,10 @@ void Connection::send_clients_list(std::string *mes, std::string *len){
                             boost::bind(&Connection::send_all_clients, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, mes, len));
 }
 bool Connection::send_all_clients(const boost::system::error_code &e, size_t, std::string *clients, std::string *len){
-    if(e)
-        std::cerr<<e.what()<<std::endl;
+    if(!has_closed(e)){
+        if(e)
+            std::cerr<<e.what()<<std::endl;
+    }
     try{
         delete len;
         boost::asio::async_write(socket(), boost::asio::buffer(*clients, clients->size()),
@@ -92,8 +95,10 @@ bool Connection::send_all_clients(const boost::system::error_code &e, size_t, st
     return 0;
 }
 void Connection::send_clients_handler(const boost::system::error_code &e, size_t b, std::string *clients){
-    if(e)
-        std::cerr<<e.what()<<std::endl;
+    if(!has_closed(e)){
+        if(e)
+            std::cerr<<e.what()<<std::endl;
+    }
     delete clients;
 
     //loop
@@ -112,8 +117,10 @@ void Connection::send_messages_to_client(std::string *len, std::string *messges)
 void Connection::send_messages(const boost::system::error_code &e, size_t, std::string *len, std::string *x){
     try{
         delete len;
+        /* if(!has_closed(e)){ */
         if(e)
             std::cerr<<e.what()<<std::endl;
+        /* } */
         else{
             boost::asio::async_write(socket(), boost::asio::buffer(*x, x->size()),
                                 boost::bind(&Connection::send_messages_handler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred, x));
@@ -125,8 +132,10 @@ void Connection::send_messages(const boost::system::error_code &e, size_t, std::
 void Connection::send_messages_handler(const boost::system::error_code &e, size_t b, std::string *to_remove){
     try{
         delete to_remove;
-        if(e)
+        if(!has_closed(e)){
+            if(e)
             std::cerr<<e.what()<<std::endl;
+        }
 
         //loop
         read_opt();
@@ -160,8 +169,10 @@ void Connection::get_msg_length_handler(const boost::system::error_code &e, size
 }
 void Connection::getActMesHandler(const boost::system::error_code &e, size_t, char *mes, int len, bool flag){
     try{
-        if(e)
+        if(!has_closed(e)){
+            if(e)
             std::cerr<<e.what()<<std::endl;
+        }
         if(flag==READ){
             std::cout.write(mes, len);
             std::endl(std::cout);
@@ -187,5 +198,5 @@ void Connection::getActMesHandler(const boost::system::error_code &e, size_t, ch
     read_opt();
 }
 void Connection::writeToClients(int sender, int id, std::string message){
-    Client::get_AllClients().at(id)->add_message(sender, message);
+    Client::getElemById(id)->get()->add_message(sender, message);
 }
